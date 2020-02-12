@@ -1,0 +1,99 @@
+﻿using System;
+using System.Threading.Tasks;
+using Grpc.Core;
+using Grpc_Api_Server.Protos;
+using Grpc_Api_Server.Services;
+using Microsoft.Extensions.Logging;
+
+namespace Grpc_Api_Server.Service
+{
+    public class InternetUsageService : InternetDataUsageReaderService.InternetDataUsageReaderServiceBase
+    {
+        private ILogger<InternetUsageService> _logger;
+
+        public InternetUsageService(ILogger<InternetUsageService> logger)
+        {
+            _logger = logger;
+        }
+
+        private const double MaxDataUsage = 1.5;
+        public override Task<UsageLimitMessage> UpdateUsage(ReadingMessage request,
+            ServerCallContext context)
+        {
+            try
+            {
+                var result = UsageLimitMessage(request);
+                return Task.FromResult(result);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e.Message);
+                throw;
+            }
+        }
+
+        public override Task<UsageLimitPackage> UpdateUsages(ReadingPackage request,
+            ServerCallContext context)
+        {
+            try
+            {
+                UsageLimitPackage result = new UsageLimitPackage();
+                result.Note = "This is a common response and pick the response specific to customer.";
+
+                foreach (var reading in request.Readings)
+                {
+                    var message = UsageLimitMessage(reading);
+                    result.Readings.Add(message);
+                }
+
+                return Task.FromResult(result);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e.Message);
+                throw;
+            }
+        }
+
+        public override Task<UsageLimitPackage> SendDataUsage(ReadingPackage request,
+            ServerCallContext context)
+        {
+            try
+            {
+                UsageLimitPackage result = new UsageLimitPackage();
+                result.Note = "This is a common response and pick the response specific to customer.";
+
+                foreach (var reading in request.Readings)
+                {
+                    var message = UsageLimitMessage(reading);
+                    result.Readings.Add(message);
+                }
+
+                return Task.FromResult(result);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e.Message);
+                throw;
+            }
+        }
+
+        private static UsageLimitMessage UsageLimitMessage(ReadingMessage request)
+        {
+            var result = new UsageLimitMessage()
+            {
+                CustomerId = request.CustomerId,
+                MobileNumber = request.MobileNumber
+            };
+
+            if (request.DataUsage >= MaxDataUsage && request.ReadingTime.ToDateTime().ToUniversalTime() == DateTime.UtcNow)
+            {
+                result.ContinueUsage = ContinueService.No;
+                result.RemainingData = 0;
+            }
+
+            return result;
+        }
+
+    }
+}

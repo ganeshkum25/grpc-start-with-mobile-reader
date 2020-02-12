@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+option csharp_namespace = "Grpc_Api_Server.Services";
+
+import "enums.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service InternetDataUsageReaderService{
+	rpc UpdateUsage(ReadingMessage)returns(UsageLimitMessage);
+	rpc UpdateUsages(ReadingPackage)returns(UsageLimitPackage);
+	rpc SendDataUsage(ReadingPackage)returns(.UsageLimitPackage);
+	rpc Test(google.protobuf.Empty)returns(google.protobuf.Empty);
+}
+
+message ReadingPackage{
+repeated ReadingMessage readings=1;
+string note=2;
+}
+
+message UsageLimitPackage{
+	repeated UsageLimitMessage readings=1;
+	string note=2;
+}
+
+message ReadingMessage{
+int32 customerId =1;
+string mobileNumber=2;
+float dataUsage=3;
+// string note=4; // lets assume that this field is removed in model version 2
+google.protobuf.Timestamp readingTime=5;
+reserved 4; // So that the position 4 will be always kept for a deleted property. i.e. versioning of model
+reserved "note"; // so that field with the same name will not be re-created.
+}
+
+message UsageLimitMessage{
+	int32 customerId =1;
+	string mobileNumber=2;
+	float remainingData=3;
+	ContinueService continueUsage=4;
+}

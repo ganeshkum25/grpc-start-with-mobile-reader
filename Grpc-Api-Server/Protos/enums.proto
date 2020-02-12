@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+option csharp_namespace = "Grpc_Api_Server.Protos";
+enum ContinueService{
+INVALID=0;
+YES=1;
+NO=2;
+}
