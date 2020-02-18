@@ -41,9 +41,29 @@ namespace MobileClientWorker
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+            var counter = 0;
             while (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+                _logger.LogInformation("Worker {counter} running at: {time}", counter, DateTimeOffset.Now);
+                counter++;
+
+                if (counter % 5 == 0)
+                {
+                    _logger.LogInformation("Stream started here...");
+
+                    var stream = Client.SendDataUsageOnStream();
+                    for (int i = 0; i < 5; i++)
+                    {
+                        _logger.LogInformation("Stream message sent...");
+
+                        var readingMessage = await MobileUsageRecorder.GetMessage();
+                        await stream.RequestStream.WriteAsync(readingMessage);
+                    }
+
+                    await stream.RequestStream.CompleteAsync();
+
+                    _logger.LogInformation("Stream ends here...");
+                }
 
                 var usages = new ReadingPackage();
                 for (int i = 0; i < 5; i++)
@@ -72,7 +92,6 @@ namespace MobileClientWorker
                     Console.WriteLine(e);
                     throw;
                 }
-
 
                 await Task.Delay(3000, stoppingToken);
             }

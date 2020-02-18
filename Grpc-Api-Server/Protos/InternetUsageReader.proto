@@ -9,7 +9,8 @@ import "google/protobuf/empty.proto";
 service InternetDataUsageReaderService{
 	rpc UpdateUsage(ReadingMessage)returns(UsageLimitMessage);
 	rpc UpdateUsages(ReadingPackage)returns(UsageLimitPackage);
-	rpc SendDataUsage(ReadingPackage)returns(.UsageLimitPackage);
+	rpc SendDataUsage(ReadingPackage)returns(UsageLimitPackage);	
+	rpc SendDataUsageOnStream(stream ReadingMessage)returns(UsageLimitMessage);
 	rpc Test(google.protobuf.Empty)returns(google.protobuf.Empty);
 }
 

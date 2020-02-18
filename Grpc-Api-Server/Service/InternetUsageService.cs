@@ -44,6 +44,9 @@ namespace Grpc_Api_Server.Service
                 {
                     var message = UsageLimitMessage(reading);
                     result.Readings.Add(message);
+                    //_logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
+                    //                       $"with mobile number {reading.MobileNumber}\n" +
+                    //                       $"has consumed {reading.DataUsage}\n\n");
                 }
 
                 return Task.FromResult(result);
@@ -67,6 +70,9 @@ namespace Grpc_Api_Server.Service
                 {
                     var message = UsageLimitMessage(reading);
                     result.Readings.Add(message);
+                    //_logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
+                    //                       $"with mobile number {reading.MobileNumber}\n" +
+                    //                       $"has consumed {reading.DataUsage}\n\n");
                 }
 
                 return Task.FromResult(result);
@@ -76,6 +82,26 @@ namespace Grpc_Api_Server.Service
                 _logger.LogError(e.Message);
                 throw;
             }
+        }
+
+        public override async Task<UsageLimitMessage> SendDataUsageOnStream(
+            IAsyncStreamReader<ReadingMessage> requestStream,
+            ServerCallContext context)
+        {
+            var task = Task.Run(
+                async () =>
+                {
+                    await foreach (var reading in requestStream.ReadAllAsync())
+                    {
+                        _logger.LogInformation("Stream message received...");
+                        _logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
+                                               $"with mobile number {reading.MobileNumber}\n" +
+                                               $"has consumed {reading.DataUsage}\n\n");
+                    };
+                });
+
+            await task;
+            return new UsageLimitMessage();
         }
 
         private static UsageLimitMessage UsageLimitMessage(ReadingMessage request)
