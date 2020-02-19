@@ -17,12 +17,15 @@ namespace MobileClientWorker
     {
         private readonly ILogger<Worker> _logger;
 
-        public Worker(ILogger<Worker> logger)
+        public Worker(ILogger<Worker> logger,
+            ILoggerFactory loggerFactory)
         {
             _logger = logger;
+            _loggerFactory = loggerFactory;
         }
 
         private InternetDataUsageReaderService.InternetDataUsageReaderServiceClient _client = null;
+        private ILoggerFactory _loggerFactory;
 
         protected InternetDataUsageReaderService.InternetDataUsageReaderServiceClient Client
         {
@@ -30,7 +33,8 @@ namespace MobileClientWorker
             {
                 if (_client == null)
                 {
-                    var channel = GrpcChannel.ForAddress("http://localhost:55300");
+                    var opts = new GrpcChannelOptions() { LoggerFactory = _loggerFactory };
+                    var channel = GrpcChannel.ForAddress("http://localhost:55300", opts);
                     _client = new InternetDataUsageReaderService.InternetDataUsageReaderServiceClient(channel);
                 }
 
