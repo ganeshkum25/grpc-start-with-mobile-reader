@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc_Api_Server.Protos;
@@ -9,6 +10,8 @@ namespace Grpc_Api_Server.Service
 {
     public class InternetUsageService : InternetDataUsageReaderService.InternetDataUsageReaderServiceBase
     {
+        const double tolerance = 10e-6;
+
         private ILogger<InternetUsageService> _logger;
 
         public InternetUsageService(ILogger<InternetUsageService> logger)
@@ -16,7 +19,7 @@ namespace Grpc_Api_Server.Service
             _logger = logger;
         }
 
-        private const double MaxDataUsage = 1.5;
+        private const double MaxDataUsage = 1024;
         public override Task<UsageLimitMessage> UpdateUsage(ReadingMessage request,
             ServerCallContext context)
         {
@@ -97,7 +100,7 @@ namespace Grpc_Api_Server.Service
                         _logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
                                                $"with mobile number {reading.MobileNumber}\n" +
                                                $"has consumed {reading.DataUsage}\n\n");
-                    };
+                    }
                 });
 
             await task;
@@ -112,10 +115,25 @@ namespace Grpc_Api_Server.Service
                 MobileNumber = request.MobileNumber
             };
 
-            if (request.DataUsage >= MaxDataUsage && request.ReadingTime.ToDateTime().ToUniversalTime() == DateTime.UtcNow)
+            if (request.DataUsage < MaxDataUsage && request.ReadingTime.ToDateTime().ToUniversalTime() == DateTime.UtcNow)
+            {
+                result.ContinueUsage = ContinueService.Yes;
+                result.RemainingData = 0;
+            }
+            else if (Math.Abs(request.DataUsage - MaxDataUsage) < tolerance && request.ReadingTime.ToDateTime().ToUniversalTime() == DateTime.UtcNow)
             {
                 result.ContinueUsage = ContinueService.No;
                 result.RemainingData = 0;
+            }
+            else
+            {
+                var additionalInfo = new Metadata()
+                    {
+                        new Metadata.Entry("Time",DateTime.UtcNow.ToString(CultureInfo.InvariantCulture)),
+                        new Metadata.Entry("exception_cause","Data usage exceeded."),
+                    };
+
+                throw new RpcException(new Status(StatusCode.Cancelled, "Data usage has reached at the peak, Can not continue the data usage."), additionalInfo);
             }
 
             return result;

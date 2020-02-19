@@ -9,10 +9,10 @@ namespace MobileClientWorker
     {
         public static Task<ReadingMessage> GetMessage()
         {
-            var reading =  new ReadingMessage()
+            var reading = new ReadingMessage()
             {
                 CustomerId = 1,
-                DataUsage = DateTime.Now.Ticks + new Random().Next(10),
+                DataUsage = 1000 + new Random().Next(512),
                 ReadingTime = Timestamp.FromDateTime(DateTime.UtcNow),
                 MobileNumber = "9766676869"
             };
