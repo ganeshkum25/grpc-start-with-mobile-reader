@@ -1,17 +1,12 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Grpc_Api_Server.Protos;
 using Grpc_Api_Server.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ArgIterator = System.ArgIterator;
 
 namespace MobileClientWorker
 {
@@ -73,7 +68,8 @@ namespace MobileClientWorker
 
                 //try
                 //{
-                //    var result = await Client.SendDataUsageAsync(usages);
+                //    var result = await Client.SendDataUsageAsync(usages,
+                //        new CallOptions().WithDeadline(DateTime.UtcNow.AddSeconds(5)));
                 //    foreach (var reading in result.Readings)
                 //    {
                 //        if (reading.ContinueUsage == ContinueService.Yes)
@@ -102,7 +98,6 @@ namespace MobileClientWorker
 
                 #endregion
 
-
                 #region stream
 
                 //_logger.LogInformation("Stream started here...");
@@ -124,51 +119,49 @@ namespace MobileClientWorker
 
                 #region Bi-directional streaming
 
+                _logger.LogInformation("Stream started here...");
 
-                try
+                var biDirectionalStream = Client.DataUsageOnBiDirectionalStream();
+
+
+                var responseReaderTask = Task.Run(async () =>
                 {
-                    _logger.LogInformation("Stream started here...");
-                    var biDirectionalStream = Client.DataUsageOnBiDirectionalStream();
-
-
-                    var responseReaderTask = Task.Run(async () =>
+                    while (await biDirectionalStream.ResponseStream.MoveNext())
                     {
-                        while (await biDirectionalStream.ResponseStream.MoveNext())
+                        var usageLimitMessage = biDirectionalStream.ResponseStream.Current;
+
+                        if (usageLimitMessage.ContinueUsage == ContinueService.Yes)
                         {
-                            var usageLimitMessage = biDirectionalStream.ResponseStream.Current;
-
-                            if (usageLimitMessage.ContinueUsage == ContinueService.Yes)
-                            {
-                                _logger.LogInformation("Continue services for Mobile Number " + usageLimitMessage.MobileNumber);
-                            }
-                            else
-                            {
-                                _logger.LogInformation("Stop services for Mobile Number " + usageLimitMessage.MobileNumber);
-                            }
-
+                            _logger.LogInformation("Continue services for Mobile Number " + usageLimitMessage.MobileNumber);
                         }
-                    });
+                        else
+                        {
+                            _logger.LogInformation("Stop services for Mobile Number " + usageLimitMessage.MobileNumber);
+                        }
 
-                    for (int i = 0; i < 5; i++)
-                    {
-                        _logger.LogInformation("Stream message sent...");
-
-                        var readingMessage = await MobileUsageRecorder.GetMessage();
-                        await biDirectionalStream.RequestStream.WriteAsync(readingMessage);
                     }
+                });
 
-                    await biDirectionalStream.RequestStream.CompleteAsync();
-                    await responseReaderTask;
-
-                    _logger.LogInformation("Stream ends here...");
-                }
-                catch (Exception e)
+                for (int i = 0; i < 5; i++)
                 {
-                    Console.WriteLine(e);
-                    throw;
+                    _logger.LogInformation("Stream message sent...");
+
+                    var readingMessage = await MobileUsageRecorder.GetMessage();
+                    await biDirectionalStream.RequestStream.WriteAsync(readingMessage);
                 }
+
+                await biDirectionalStream.RequestStream.CompleteAsync();
+                await responseReaderTask;
+
+                _logger.LogInformation("Stream ends here...");
+
 
                 #endregion
+
+
+                // How to send metadata (For authentication/authorization)
+                // How to terminate Rpc
+
                 Console.WriteLine("\n\n\nService execution stops\n\n\n");
                 await Task.Delay(3000, stoppingToken);
             }
