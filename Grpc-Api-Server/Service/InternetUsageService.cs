@@ -25,7 +25,7 @@ namespace Grpc_Api_Server.Service
         {
             try
             {
-                var result = UsageLimitMessage(request);
+                var result = UsageLimitMessageThrowsException(request);
                 return Task.FromResult(result);
             }
             catch (Exception e)
@@ -45,7 +45,7 @@ namespace Grpc_Api_Server.Service
 
                 foreach (var reading in request.Readings)
                 {
-                    var message = UsageLimitMessage(reading);
+                    var message = UsageLimitMessageThrowsException(reading);
                     result.Readings.Add(message);
                     //_logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
                     //                       $"with mobile number {reading.MobileNumber}\n" +
@@ -71,7 +71,7 @@ namespace Grpc_Api_Server.Service
 
                 foreach (var reading in request.Readings)
                 {
-                    var message = UsageLimitMessage(reading);
+                    var message = UsageLimitMessageThrowsException(reading);
                     result.Readings.Add(message);
                     //_logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
                     //                       $"with mobile number {reading.MobileNumber}\n" +
@@ -107,7 +107,39 @@ namespace Grpc_Api_Server.Service
             return new UsageLimitMessage();
         }
 
-        private static UsageLimitMessage UsageLimitMessage(ReadingMessage request)
+        public override async Task DataUsageOnBiDirectionalStream(IAsyncStreamReader<ReadingMessage> requestStream,
+            IServerStreamWriter<UsageLimitMessage> responseStream,
+            ServerCallContext context)
+        {
+            var task = Task.Run(
+                async () =>
+                {
+                    await foreach (var reading in requestStream.ReadAllAsync())
+                    {
+                        try
+                        {
+                            _logger.LogInformation("Stream message received...");
+                            _logger.LogInformation($"\n\nreading for customer ID {reading.CustomerId} has received, \n " +
+                                                   $"with mobile number {reading.MobileNumber}\n" +
+                                                   $"has consumed {reading.DataUsage}\n\n");
+
+
+                            var usageLimitMessage = UsageLimitMessage(reading);
+
+                            await responseStream.WriteAsync(usageLimitMessage);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e);
+                            throw;
+                        }
+                    }
+                });
+
+            await task;
+        }
+
+        private static UsageLimitMessage UsageLimitMessageThrowsException(ReadingMessage request)
         {
             var result = new UsageLimitMessage()
             {
@@ -139,5 +171,26 @@ namespace Grpc_Api_Server.Service
             return result;
         }
 
+        private static UsageLimitMessage UsageLimitMessage(ReadingMessage request)
+        {
+            var result = new UsageLimitMessage()
+            {
+                CustomerId = request.CustomerId,
+                MobileNumber = request.MobileNumber
+            };
+
+            if (request.DataUsage <= MaxDataUsage && request.ReadingTime.ToDateTime().ToUniversalTime() == DateTime.UtcNow)
+            {
+                result.ContinueUsage = ContinueService.Yes;
+                result.RemainingData = 0;
+            }
+            else
+            {
+                result.ContinueUsage = ContinueService.No;
+                result.RemainingData = 0;
+            }
+
+            return result;
+        }
     }
 }

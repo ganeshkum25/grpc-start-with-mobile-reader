@@ -61,69 +61,115 @@ namespace MobileClientWorker
                 _logger.LogInformation("Worker {counter} running at: {time}", counter, DateTimeOffset.Now);
                 counter++;
 
+                #region packet of messages
+
+
+                //var usages = new ReadingPackage();
+                //for (int i = 0; i < 5; i++)
+                //{
+                //    var mobile1Usage = await MobileUsageRecorder.GetMessage();
+                //    usages.Readings.Add(mobile1Usage);
+                //}
+
+                //try
+                //{
+                //    var result = await Client.SendDataUsageAsync(usages);
+                //    foreach (var reading in result.Readings)
+                //    {
+                //        if (reading.ContinueUsage == ContinueService.Yes)
+                //        {
+                //            _logger.LogInformation("Continue services for Mobile Number " + reading.MobileNumber);
+                //        }
+                //        else
+                //        {
+                //            _logger.LogInformation("Stop services for Mobile Number " + reading.MobileNumber);
+                //        }
+                //    }
+                //}
+                //catch (RpcException rpcException)
+                //{
+                //    _logger.LogError(rpcException.Status.Detail);
+                //    foreach (var additionalInfo in rpcException.Trailers)
+                //    {
+                //        _logger.LogError($"Extra information:\n Key = {additionalInfo.Key}\n value = {additionalInfo.Value}\n\n");
+                //    }
+                //}
+                //catch (Exception e)
+                //{
+                //    _logger.LogError(e.ToString());
+                //    throw;
+                //}
+
+                #endregion
+
+
                 #region stream
 
-                if (counter % 5 == 0)
+                //_logger.LogInformation("Stream started here...");
+
+                //var stream = Client.SendDataUsageOnStream();
+                //for (int i = 0; i < 5; i++)
+                //{
+                //    _logger.LogInformation("Stream message sent...");
+
+                //    var readingMessage = await MobileUsageRecorder.GetMessage();
+                //    await stream.RequestStream.WriteAsync(readingMessage);
+                //}
+
+                //await stream.RequestStream.CompleteAsync();
+
+                //_logger.LogInformation("Stream ends here...");
+
+                #endregion
+
+                #region Bi-directional streaming
+
+
+                try
                 {
                     _logger.LogInformation("Stream started here...");
+                    var biDirectionalStream = Client.DataUsageOnBiDirectionalStream();
 
-                    var stream = Client.SendDataUsageOnStream();
+
+                    var responseReaderTask = Task.Run(async () =>
+                    {
+                        while (await biDirectionalStream.ResponseStream.MoveNext())
+                        {
+                            var usageLimitMessage = biDirectionalStream.ResponseStream.Current;
+
+                            if (usageLimitMessage.ContinueUsage == ContinueService.Yes)
+                            {
+                                _logger.LogInformation("Continue services for Mobile Number " + usageLimitMessage.MobileNumber);
+                            }
+                            else
+                            {
+                                _logger.LogInformation("Stop services for Mobile Number " + usageLimitMessage.MobileNumber);
+                            }
+
+                        }
+                    });
+
                     for (int i = 0; i < 5; i++)
                     {
                         _logger.LogInformation("Stream message sent...");
 
                         var readingMessage = await MobileUsageRecorder.GetMessage();
-                        await stream.RequestStream.WriteAsync(readingMessage);
+                        await biDirectionalStream.RequestStream.WriteAsync(readingMessage);
                     }
 
-                    await stream.RequestStream.CompleteAsync();
+                    await biDirectionalStream.RequestStream.CompleteAsync();
+                    await responseReaderTask;
 
                     _logger.LogInformation("Stream ends here...");
                 }
-
-                #endregion
-
-                #region packet of messages
-
-
-                var usages = new ReadingPackage();
-                for (int i = 0; i < 5; i++)
-                {
-                    var mobile1Usage = await MobileUsageRecorder.GetMessage();
-                    usages.Readings.Add(mobile1Usage);
-                }
-
-                try
-                {
-                    var result = await Client.SendDataUsageAsync(usages);
-                    foreach (var reading in result.Readings)
-                    {
-                        if (reading.ContinueUsage == ContinueService.Yes)
-                        {
-                            _logger.LogInformation("Continue services for Mobile Number " + reading.MobileNumber);
-                        }
-                        else
-                        {
-                            _logger.LogInformation("Stop services for Mobile Number " + reading.MobileNumber);
-                        }
-                    }
-                }
-                catch (RpcException rpcException)
-                {
-                    _logger.LogError(rpcException.Status.Detail);
-                    foreach (var additionalInfo in rpcException.Trailers)
-                    {
-                        _logger.LogError($"Extra information:\n Key = {additionalInfo.Key}\n value = {additionalInfo.Value}\n\n");
-                    }
-                }
                 catch (Exception e)
                 {
-                    _logger.LogError(e.ToString());
+                    Console.WriteLine(e);
                     throw;
                 }
 
                 #endregion
-
+                Console.WriteLine("\n\n\nService execution stops\n\n\n");
                 await Task.Delay(3000, stoppingToken);
             }
         }
