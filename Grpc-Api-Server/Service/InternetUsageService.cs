@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc_Api_Server.Protos;
@@ -107,10 +108,14 @@ namespace Grpc_Api_Server.Service
             return new UsageLimitMessage();
         }
 
-        public override async Task DataUsageOnBiDirectionalStream(IAsyncStreamReader<ReadingMessage> requestStream,
+        public override async Task DataUsageOnBiDirectionalStream(
+            IAsyncStreamReader<ReadingMessage> requestStream,
             IServerStreamWriter<UsageLimitMessage> responseStream,
             ServerCallContext context)
         {
+            //var tokenNumber = context.RequestHeaders.FirstOrDefault(k => k.Key == "Request-Token-number")?.Value;
+            //_logger.LogInformation("Token Number is : " + tokenNumber);
+
             var task = Task.Run(
                 async () =>
                 {

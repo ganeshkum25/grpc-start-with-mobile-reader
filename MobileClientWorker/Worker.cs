@@ -58,7 +58,6 @@ namespace MobileClientWorker
 
                 #region packet of messages
 
-
                 //var usages = new ReadingPackage();
                 //for (int i = 0; i < 5; i++)
                 //{
@@ -68,8 +67,7 @@ namespace MobileClientWorker
 
                 //try
                 //{
-                //    var result = await Client.SendDataUsageAsync(usages,
-                //        new CallOptions().WithDeadline(DateTime.UtcNow.AddSeconds(5)));
+                //    var result = await Client.SendDataUsageAsync(usages, new CallOptions().WithDeadline(DateTime.UtcNow.AddSeconds(5)));
                 //    foreach (var reading in result.Readings)
                 //    {
                 //        if (reading.ContinueUsage == ContinueService.Yes)
@@ -121,7 +119,13 @@ namespace MobileClientWorker
 
                 _logger.LogInformation("Stream started here...");
 
-                var biDirectionalStream = Client.DataUsageOnBiDirectionalStream();
+                //var metadata = new Metadata
+                //{
+                //    { "Request-Token-number", new Random().Next(1000).ToString()}
+                //};
+
+
+                var biDirectionalStream = Client.DataUsageOnBiDirectionalStream(/*metadata*/);
 
 
                 var responseReaderTask = Task.Run(async () =>

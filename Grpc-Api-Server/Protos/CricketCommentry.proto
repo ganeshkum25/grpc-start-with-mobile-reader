@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+option csharp_namespace = "Grpc_Api_Server.Protos";
+
+service LiveCricketCommentry{
+	//rpc GetLiveStreming()returns(stream score);
+	}
